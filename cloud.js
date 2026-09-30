@@ -38,7 +38,7 @@ export function authError(e) {
     'auth/wrong-password': 'Şifre hatalı.',
     'auth/user-not-found': 'Bu e-postayla hesap yok. Önce kayıt ol.',
     'auth/email-already-in-use': 'Bu e-posta zaten kayıtlı. Giriş yap.',
-    'auth/weak-password': 'Şifre en az 6 karakter olmalı.',
+    'auth/weak-password': 'Şifre en az 6 karakter olacak gardaşım.',
     'auth/invalid-email': 'E-posta adresi geçersiz.',
     'auth/popup-closed-by-user': 'Giriş penceresi kapatıldı.',
     'auth/network-request-failed': 'İnternet bağlantısı yok.',
