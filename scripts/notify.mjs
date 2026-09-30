@@ -1,12 +1,14 @@
 // Günde 2 kez (öğlen / akşam) tüm kullanıcılara dürtme bildirimi gönderir.
 // GitHub Actions çalıştırır; FIREBASE_SERVICE_ACCOUNT secret'ı gerekir (Firebase › Proje ayarları › Hizmet hesapları).
 // Kullanıcı o gün harcama girdiyse farklı, girmediyse farklı mesaj alır.
-import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
 
 const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
 if (!sa.project_id) { console.log('FIREBASE_SERVICE_ACCOUNT secret henüz eklenmemiş; bildirim atlandı.'); process.exit(0); }
-admin.initializeApp({ credential: admin.credential.cert(sa) });
-const db = admin.firestore();
+initializeApp({ credential: cert(sa) });
+const db = getFirestore();
 
 const TZ = 'Europe/Istanbul';
 const now = new Date();
@@ -55,7 +57,7 @@ for (const u of users.docs) {
   const total = items.reduce((t, e) => t + (e.amount || 0), 0);
   const body = pick(MSG[slot][items.length ? 'var' : 'yok']).replace('{n}', items.length).replace('{t}', money(total));
 
-  const res = await admin.messaging().sendEachForMulticast({
+  const res = await getMessaging().sendEachForMulticast({
     tokens,
     data: { title: 'Büt Ç.', body },
     webpush: { headers: { Urgency: 'normal', TTL: String(4 * 3600) } },
@@ -63,6 +65,6 @@ for (const u of users.docs) {
   sent += res.successCount;
   // Geçersiz token'ları temizle (uygulama silinmiş / izin kaldırılmış)
   const dead = res.responses.map((r, i) => (!r.success && /registration-token-not-registered|invalid-argument|invalid-registration-token/.test(r.error?.code || '')) ? tokens[i] : null).filter(Boolean);
-  if (dead.length) { await u.ref.update({ pushTokens: admin.firestore.FieldValue.arrayRemove(...dead) }); removed += dead.length; }
+  if (dead.length) { await u.ref.update({ pushTokens: FieldValue.arrayRemove(...dead) }); removed += dead.length; }
 }
 console.log(`${slot}: ${sent} bildirim gönderildi, ${removed} geçersiz token silindi (${users.size} kullanıcı)`);
