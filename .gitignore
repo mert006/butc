@@ -1,0 +1,6 @@
+# Yayına gitmeyenler
+test-fis.jpg
+logos/
+*.log
+node_modules/
+service-account*.json

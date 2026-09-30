@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#2b2620"/><g transform="translate(256 256) scale(0.78) translate(-256 -256)">
+  <path d="M352 150 A130 130 0 1 0 352 330" fill="none" stroke="#efeddc" stroke-width="70" stroke-linecap="round"/>
+  <!-- çengel = kuruş -->
+  <circle cx="262" cy="418" r="50" fill="#f97316"/>
+  <text x="262" y="444" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-weight="800" font-size="72" fill="#2b2620">₺</text>
+  <path d="M262 368 V338" stroke="#f97316" stroke-width="14" stroke-linecap="round"/>
+  <!-- BP -->
+  <text x="410" y="118" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="54" fill="#f97316">BP</text>
+</g></svg>

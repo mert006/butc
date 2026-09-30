@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b2620">
+<title>Büt Ç.</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <button id="payLeft" class="pay"></button>
+    <span id="netbadge" class="badge" hidden>Çevrimdışı</span>
+    <button id="payRight" class="pay right"></button>
+  </header>
+
+  <main id="scroller">
+    <!-- ANA -->
+    <section id="v-home" class="view active">
+      <div class="card hero">
+        <div class="muted">Bu ay harcadığın</div>
+        <div id="monthTotal" class="big">₺0</div>
+        <div id="monthCompare" class="muted small"></div>
+      </div>
+      <div id="backupWarn" class="card warn" hidden></div>
+      <h2>Son harcamalar</h2>
+      <div id="recent" class="list"></div>
+      <button id="showAll" class="link" hidden>Tümünü göster</button>
+    </section>
+
+    <!-- ANALİZ -->
+    <section id="v-stats" class="view">
+      <div class="chips" id="periods"></div>
+      <div id="stats"></div>
+    </section>
+
+    <!-- AYARLAR -->
+    <section id="v-settings" class="view">
+      <div class="card" id="accountCard"></div>
+      <div class="card">
+        <h3>Maaş</h3>
+        <div class="row" style="align-items:center"><span class="small" style="flex:0 0 auto">Ayın kaçında yatıyo?</span><input id="payDay" inputmode="numeric" placeholder="ör. 15" style="flex:0 0 80px"></div>
+        <div class="row" style="align-items:center"><span class="small" style="flex:0 0 auto">Ne kadar yatıyo?</span><input id="paySalary" inputmode="decimal" placeholder="₺"></div>
+        <p class="muted small">Üstteki "Maaş gününe kalan" ve "Kalan" bundan hesaplanır. Kimseyle paylaşılmaz.</p>
+      </div>
+      <div class="card">
+        <h3>Bildirimler</h3>
+        <p id="pushInfo" class="muted small"></p>
+        <button id="pushToggle" class="btn ghost full"></button>
+      </div>
+      <div class="card">
+        <h3>Kimin için?</h3>
+        <p class="muted small">Harcamayı kimin ya da ne için yaptığın. Analizde "sevgiline şu kadar" gibi görünür.</p>
+        <div id="purEdit" class="list"></div>
+        <button id="purAdd" class="btn ghost full">+ Ekle</button>
+      </div>
+      <div class="card">
+        <h3>Kategoriler</h3>
+        <div id="catEdit" class="list"></div>
+        <button id="catAdd" class="btn ghost full">+ Kategori ekle</button>
+      </div>
+      <div class="card">
+        <h3>Yedek</h3>
+        <p id="bkText" class="muted small"></p>
+        <div class="row">
+          <button id="bkShare" class="btn">Yedeği paylaş</button>
+          <button id="bkImport" class="btn ghost">Yedekten yükle</button>
+        </div>
+        <button id="csvExport" class="btn ghost full">Excel için CSV indir</button>
+        <input id="bkFile" type="file" accept=".json,application/json" hidden>
+        <p id="bkInfo" class="muted small"></p>
+      </div>
+      <div class="card">
+        <h3>Piyasa verisi</h3>
+        <p id="mktInfo" class="muted small"></p>
+      </div>
+      <div class="card">
+        <h3>Tehlikeli bölge</h3>
+        <button id="wipe" class="btn danger full">Tüm harcamaları sil</button>
+      </div>
+    </section>
+  </main>
+
+  <button id="fab" class="fab" aria-label="Harcama ekle">+</button>
+
+  <nav class="tabs">
+    <button data-v="home" class="active"><span>🏠</span>Ana</button>
+    <button data-v="stats"><span>📊</span>Analiz</button>
+    <button data-v="settings"><span>⚙️</span>Ayarlar</button>
+  </nav>
+
+  <!-- + SEÇİCİ -->
+  <div id="chooser" class="overlay" hidden>
+    <div class="panel">
+      <div class="sheet-head"><h2>Nasıl ekleyelim?</h2><button class="x" data-close>✕</button></div>
+      <button class="choice" id="chManual"><b>✍️</b><div><div>Elle gir</div><div class="muted small">Tutar, kategori, istersen ürün</div></div></button>
+      <button class="choice" id="chCamera"><b>📷</b><div><div>Fiş / fatura fotoğrafı çek</div><div class="muted small">Ben okurum, emin olmadığımı sorarım</div></div></button>
+      <button class="choice" id="chGallery"><b>🖼️</b><div><div>Galeriden seç</div><div class="muted small">Daha önce çektiğin fiş</div></div></button>
+      <input id="camFile" type="file" accept="image/*" capture="environment" hidden>
+      <input id="galFile" type="file" accept="image/*" hidden>
+    </div>
+  </div>
+
+  <!-- ELLE GİRİŞ -->
+  <div id="sheet" class="overlay" hidden>
+    <form id="form" class="panel" novalidate>
+      <div class="sheet-head">
+        <h2 id="formTitle">Harcama ekle</h2>
+        <button type="button" class="x" data-close>✕</button>
+      </div>
+      <div class="lbl">Para nereye gitti?</div>
+      <div id="fCats" class="catgrid"></div>
+      <div class="amount"><span>₺</span><input id="fAmount" inputmode="decimal" placeholder="Ne kadar?" autocomplete="off"></div>
+
+      <div class="lbl">Kimin için? <span id="fPurHint" class="muted small"></span></div>
+      <div id="fPurs" class="pchips"></div>
+
+      <details id="fItemBox">
+        <summary>Ürün detayı (zam takibi için)</summary>
+        <input id="fItem" list="itemList" placeholder="Ürün adı: ekmek, benzin, süt…" autocomplete="off">
+        <datalist id="itemList"></datalist>
+        <div class="row">
+          <input id="fQty" inputmode="decimal" placeholder="Miktar">
+          <select id="fUnit"><option>adet</option><option>kg</option><option>lt</option><option>paket</option><option>ay</option></select>
+        </div>
+        <div id="fHint" class="muted small"></div>
+      </details>
+
+      <div class="row">
+        <input id="fDate" type="date">
+        <input id="fNote" placeholder="Not / mağaza" autocomplete="off">
+      </div>
+      <div class="row">
+        <button type="button" id="fDelete" class="btn danger" hidden>Sil</button>
+        <button type="submit" class="btn full">Kaydet</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- FİŞ -->
+  <div id="receipt" class="overlay" hidden>
+    <div class="panel tall">
+      <div class="sheet-head"><h2>Fiş</h2><button class="x" data-close>✕</button></div>
+      <div id="rcBody"></div>
+    </div>
+  </div>
+
+  <!-- SORU -->
+  <div id="ask" class="overlay top-layer" hidden>
+    <div class="panel">
+      <div class="bubble"><span class="bot">🤖</span><div id="askText"></div></div>
+      <div id="askSub" class="muted small"></div>
+      <div id="askOpts" class="pchips big"></div>
+      <div id="askInputRow" class="row" hidden>
+        <input id="askInput" autocomplete="off">
+        <button id="askOk" class="btn" style="flex:0 0 auto">Tamam</button>
+      </div>
+      <button id="askSkip" class="link">Atla</button>
+    </div>
+  </div>
+
+  <!-- GİRİŞ -->
+  <div id="login" class="overlay solid" hidden>
+    <div class="login">
+      <img src="icons/icon-192.png" alt="" width="72" height="72">
+      <h2>Büt Ç.</h2>
+      <p class="muted small tagline">Finansal okuryazar olmazsan okuryazar olman pek bi şey değiştirmiyo. Ama sen bilirsin gardaşım.</p>
+      <button id="lgGoogle" class="btn full">Uğraştırma beni, Google'la gir la işte</button>
+      <div class="or">ya da</div>
+      <input id="lgEmail" type="email" placeholder="E-postan ne cürüm?" autocomplete="email">
+      <input id="lgPass" type="password" placeholder="Zahmet olmazsa şifreni de giriver la (en az 6 harf)" autocomplete="current-password">
+      <div class="row">
+        <button id="lgIn" class="btn ghost">Giriyim mi?</button>
+        <button id="lgUp" class="btn ghost">Yeni üye gaydı</button>
+      </div>
+      <button id="lgReset" class="link">Şifrem neydi la?</button>
+      <p id="lgErr" class="bad small"></p>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
