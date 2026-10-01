@@ -1,5 +1,5 @@
 // Çevrimdışı çalışma: uygulama dosyaları önbellekten, piyasa verisi önce internetten.
-const CACHE = 'bb-v7';
+const CACHE = 'bb-v8';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'cloud.js', 'firebase-config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/badge-96.png', 'icons/logo.svg'];
 
 self.addEventListener('install', e => {

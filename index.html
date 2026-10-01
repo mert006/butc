@@ -44,7 +44,7 @@
       <div class="card">
         <h3>Maaş</h3>
         <div class="row" style="align-items:center"><span class="small" style="flex:0 0 auto">Ayın kaçında yatıyo?</span><input id="payDay" inputmode="numeric" placeholder="ör. 15" style="flex:0 0 80px"></div>
-        <div class="row" style="align-items:center"><span class="small" style="flex:0 0 auto">Ne kadar yatıyo?</span><input id="paySalary" inputmode="decimal" placeholder="₺"></div>
+        <div class="row" style="align-items:center"><span class="small" style="flex:0 0 auto">Ne kadar yatıyo?</span><input id="paySalary" class="money" inputmode="decimal" placeholder="₺"></div>
         <p class="muted small">Üstteki "Maaş gününe kalan" ve "Kalan" bundan hesaplanır. Kimseyle paylaşılmaz.</p>
       </div>
       <div class="card">
@@ -114,7 +114,7 @@
       </div>
       <div class="lbl">Para nereye gitti?</div>
       <div id="fCats" class="catgrid"></div>
-      <div class="amount"><span>₺</span><input id="fAmount" inputmode="decimal" placeholder="Ne kadar?" autocomplete="off"></div>
+      <div class="amount"><span>₺</span><input id="fAmount" class="money" inputmode="decimal" placeholder="Ne kadar?" autocomplete="off"></div>
 
       <div class="lbl">Kimin için? <span id="fPurHint" class="muted small"></span></div>
       <div id="fPurs" class="pchips"></div>

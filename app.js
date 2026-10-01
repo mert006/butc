@@ -108,6 +108,24 @@ function parseAmount(s) {
   return parseFloat(s);
 }
 const fmtNum = v => v.toLocaleString('tr-TR', { maximumFractionDigits: 3 });
+const moneyStr = v => v == null || !isFinite(v) ? '' : v.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+// Tutar yazarken binlik nokta kendiliğinden gelsin: 1200 → 1.200, 1200000 → 1.200.000 (kuruş virgülle)
+function groupInput(el, e) {
+  let v = el.value, pos = el.selectionStart ?? v.length;
+  if (e?.data === '.' && v[pos - 1] === '.') v = v.slice(0, pos - 1) + ',' + v.slice(pos);   // elle yazılan nokta = kuruş virgülü
+  const keep = v.slice(0, pos).replace(/[^\d,]/g, '').length;
+  let [int, ...dec] = v.replace(/[^\d,]/g, '').split(',');
+  int = int.replace(/^0+(?=\d)/, '');
+  if (!int && dec.length) int = '0';
+  let out = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  if (dec.length) out += ',' + dec.join('').slice(0, 2);
+  if (out === el.value) return;
+  el.value = out;
+  let n = 0, p = 0;   // imleci aynı rakamın arkasına geri koy
+  while (p < out.length && n < keep) { if (/[\d,]/.test(out[p])) n++; p++; }
+  if (document.activeElement === el) el.setSelectionRange(p, p);
+}
+document.addEventListener('input', e => { if (e.target.classList?.contains('money')) groupInput(e.target, e); }, true);
 const fmtDate = s => parseYmd(s).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const fmtDay = s => {
   const diff = daysBetween(s, today());
@@ -173,7 +191,8 @@ function ask({ text, sub = '', options = [], input = null, value = '', skip = 'A
     $('#askInputRow').hidden = !input;
     if (input) {
       inp.type = input === 'date' ? 'date' : 'text';
-      inp.inputMode = input === 'number' ? 'decimal' : 'text';
+      inp.inputMode = input === 'number' || input === 'money' ? 'decimal' : 'text';
+      inp.classList.toggle('money', input === 'money');
       inp.value = value;
     }
     const finish = v => { const f = askDone; askDone = null; closeOv('ask'); f?.(v); };
@@ -314,7 +333,7 @@ function openSheet(id) {
   editing = id ? db.expenses.find(x => x.id === id) : null;
   const e = editing;
   $('#formTitle').textContent = e ? 'Harcamayı düzenle' : 'Harcama ekle';
-  $('#fAmount').value = e ? String(e.amount).replace('.', ',') : '';
+  $('#fAmount').value = e ? moneyStr(e.amount) : '';
   $('#fItem').value = e?.item || '';
   $('#fQty').value = e?.qty ? String(e.qty).replace('.', ',') : '';
   $('#fUnit').value = e?.unit || 'adet';
@@ -540,7 +559,7 @@ async function runQuestions() {
       a = await ask({ text: q.text, options: [{ label: 'Bugün', value: today() }, { label: 'Dün', value: ymd(new Date(Date.now() - 864e5)) }], input: 'date', value: today() });
       if (isYmd(a)) rc.date = a;
     } else {
-      const input = q.type === 'number' || ['amount', 'qty', 'total'].includes(q.field) ? 'number' : 'text';
+      const input = ['amount', 'total'].includes(q.field) ? 'money' : q.type === 'number' || q.field === 'qty' ? 'number' : 'text';
       a = await ask({ text: q.text, sub: target ? `Kalem: ${esc(target.name)}` : '', options: q.options.map(o => ({ label: o, value: o })), input });
       if (a != null) applyAnswer(q, target, a);
     }
@@ -572,7 +591,7 @@ function renderReceipt() {
   const rows = rc.items.map((x, i) => `
     <div class="rc-row${x.low ? ' low' : ''}" data-i="${i}">
       <input class="rc-name" value="${esc(x.name)}" data-f="name">
-      <input class="rc-amt" inputmode="decimal" value="${x.amount != null ? String(x.amount).replace('.', ',') : ''}" placeholder="₺?" data-f="amount">
+      <input class="rc-amt money" inputmode="decimal" value="${moneyStr(x.amount)}" placeholder="₺?" data-f="amount">
       <button class="x rc-del" aria-label="Kalemi sil">✕</button>
       <div class="sub">
         <select data-f="cat">${opts(db.categories, x.cat)}</select>
@@ -809,7 +828,7 @@ function renderSettings() {
     acc.innerHTML = `<h3>Hesap</h3><p class="small muted">Yerel mod: veriler sadece bu cihazda. Üyelik, senkron ve fiş okuma Firebase kurulumuyla açılır.</p>`;
   }
   $('#payDay').value = db.payDay || '';
-  $('#paySalary').value = db.salary ? String(db.salary).replace('.', ',') : '';
+  $('#paySalary').value = db.salary ? moneyStr(db.salary) : '';
   renderPushCard();
   renderEditor('#catEdit', db.categories, id => db.expenses.filter(e => e.cat === id).length);
   renderEditor('#purEdit', db.purposes, id => db.expenses.filter(e => e.purpose === id).length);
@@ -929,7 +948,7 @@ async function askPay() {
   const day = parseInt(d, 10);
   if (!(day >= 1 && day <= 31)) return;
   db.payDay = day;
-  const s = await ask({ text: 'Ne kadar yatıyo peki?', sub: 'Söylemezsen "Kalan"ı hesaplayamam. Kimseyle paylaşılmaz, merak etme.', input: 'number', value: db.salary ? String(db.salary).replace('.', ',') : '', skip: 'Söylemem' });
+  const s = await ask({ text: 'Ne kadar yatıyo peki?', sub: 'Söylemezsen "Kalan"ı hesaplayamam. Kimseyle paylaşılmaz, merak etme.', input: 'money', value: db.salary ? moneyStr(db.salary) : '', skip: 'Söylemem' });
   const sal = parseAmount(s);
   if (sal > 0) db.salary = Math.round(sal * 100) / 100;
   commitSettings(); renderAll();
