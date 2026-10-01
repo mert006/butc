@@ -4,3 +4,5 @@ logos/
 *.log
 node_modules/
 service-account*.json
+DURUM.md
+GUNLUK.md
