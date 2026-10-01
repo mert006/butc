@@ -962,32 +962,74 @@ function payFromSettings() {
 
 // ---------- BİLDİRİM ----------
 const pushSupported = () => 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+// Cihazı yokla: bildirim neden açılamıyor, kullanıcıyı doğru ayara yönlendir
+const isAndroid = /Android/i.test(navigator.userAgent);
+const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const inAppBrowser = () => /Instagram|FBAN|FBAV|FB_IAB|Line\/|TikTok|musical_ly/i.test(navigator.userAgent);
+function pushSteps(why) {
+  if (why === 'unsupported') return inAppBrowser()
+    ? 'Instagram/TikTok gibi bi uygulamanın içinden açmışsın, orda bildirim olmuyo.<br>Sağ üstteki <b>⋮</b> › <b>Chrome\'da aç</b> de, sonra <b>Ana ekrana ekle</b>.'
+    : 'Bu tarayıcı bildirim desteklemiyo. Telefonda <b>Chrome</b> ile aç, menüden <b>Ana ekrana ekle</b> de, ordan gir.';
+  if (why === 'silent') return (isAndroid
+    ? `Telefon bildirimi yutmuş olabilir:<br>1. <b>Ayarlar › Uygulamalar › ${isInstalled() ? 'Büt Ç.' : 'Chrome'} › Bildirimler</b> açık mı bak (alt kategoriler de).`
+      + '<br>2. <b>Rahatsız Etmeyin</b> modu kapalı mı?<br>3. <b>Pil › Uygulama pil kullanımı</b>nda "Kısıtlı" değil, "Kısıtlamasız" yap.'
+    : 'Telefonun/bilgisayarın bildirim ayarlarında tarayıcıya izin ver, Rahatsız Etmeyin kapalı olsun.');
+  // why === 'denied': izin engellenmiş, sitenin kendisi bir daha soramaz
+  if (!isAndroid) return 'Adres çubuğundaki <b>🔒</b> simgesi › <b>Bildirimler</b> › <b>İzin ver</b>.';
+  return isInstalled()
+    ? 'Uygulama simgesine basılı tut › <b>Uygulama bilgisi</b> › <b>Bildirimler</b> › <b>Aç</b>.<br>Olmazsa: <b>Ayarlar › Uygulamalar › Chrome › Bildirimler</b> açık mı bak.'
+    : 'Adres çubuğunun solundaki <b>⚙/🔒</b> simgesine dokun › <b>İzinler</b> › <b>Bildirimler</b> › <b>İzin ver</b>.<br>Olmazsa: <b>Ayarlar › Uygulamalar › Chrome › Bildirimler</b> açık mı bak.';
+}
+async function pushGuide(why, err) {
+  const head = { unsupported: 'Burda dürtemiyom la', denied: 'Bildirimler kapalı gardaşım', silent: 'Bildirim gelmedi demek…', error: 'Bi şey ters gitti' }[why];
+  const sub = why === 'error'
+    ? `İzin tamam ama bildirim sunucusuna kaydolamadım. İnternetini kontrol et, bi daha dene.<br><span class="muted">Hata: ${esc(err?.message || String(err))}</span>`
+    : pushSteps(why);
+  const a = await ask({ text: head, sub, options: why === 'unsupported' ? [] : [{ label: '🔁 Açtım, bi daha dene', value: 1 }], skip: 'Sonra' });
+  if (a) return enablePush();
+  return false;
+}
+async function testPush() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification('Büt Ç.', { body: 'Bak böyle dürtecem 👉 Bugün ne harcadın la?', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: 'but-c-test' });
+  } catch (e) { return pushGuide('silent'); }
+  const a = await ask({ text: 'Deneme bildirimi yolladım. Geldi mi?', sub: 'Ekranın üstüne bi bak, bildirim çubuğunu aşağı çek.', options: [{ label: '👍 Geldi', value: 'ok' }, { label: '👎 Gelmedi', value: 'no' }], skip: 'Bakamadım' });
+  if (a === 'no') return pushGuide('silent');
+  if (a === 'ok') toast('Tamamdır, günde 2 kere dürterim');
+}
 async function enablePush() {
+  if (!pushSupported()) return pushGuide('unsupported');
+  if (Notification.permission === 'denied') return pushGuide('denied');
   if (Notification.permission !== 'granted') {
     const p = await Notification.requestPermission();
-    if (p !== 'granted') { toast('İzin vermedin, dürtemem artık'); renderSettings(); return false; }
+    if (p === 'denied') return pushGuide('denied');
+    if (p !== 'granted') { toast('İzin penceresini kapattın, bi daha bas'); return false; }
   }
   try {
     await cloud.enablePush(user.uid, await navigator.serviceWorker.ready);
     localStorage.removeItem('bb.pushOff');
-    toast('Tamamdır, günde 2 kere dürterim');
-    return true;
-  } catch (e) { toast('Bildirim açılamadı: ' + e.message); return false; }
+    localStorage.setItem('bb.pushWanted', '1');
+  } catch (e) { console.error('push', e); pushGuide('error', e); return false; }
   finally { if ($('#v-settings').classList.contains('active')) renderSettings(); }
+  testPush();
+  return true;
 }
 async function disablePush() {
   try { await cloud.disablePush(user.uid); } catch (e) { /* çevrimdışı olabilir */ }
-  localStorage.setItem('bb.pushOff', '1');
+  localStorage.setItem('bb.pushOff', '1'); localStorage.removeItem('bb.pushWanted');
   toast('Bildirimler kapandı'); renderSettings();
 }
 function renderPushCard() {
   const info = $('#pushInfo'), btn = $('#pushToggle');
-  if (mode !== 'cloud' || !pushSupported()) { info.textContent = 'Bu cihazda bildirim desteklenmiyor (ya da hesap yok).'; btn.hidden = true; return; }
-  if (Notification.permission === 'denied') {
-    info.textContent = 'Bildirim izni tarayıcıdan engellenmiş. Açmak için: site ayarları › Bildirimler › İzin ver.';
-    btn.hidden = true; return;
-  }
+  if (mode !== 'cloud') { info.textContent = 'Bildirim için hesapla girmen lazım.'; btn.hidden = true; return; }
   btn.hidden = false;
+  if (!pushSupported() || Notification.permission === 'denied') {
+    info.textContent = !pushSupported() ? 'Bu tarayıcıda bildirim yok. Nasıl açılır göstereyim.' : 'Bildirimler telefondan kapalı. Nasıl açılır göstereyim.';
+    btn.textContent = 'Dürt la (nasıl açılır?)';
+    btn.onclick = () => pushGuide(!pushSupported() ? 'unsupported' : 'denied');
+    return;
+  }
   const on = Notification.permission === 'granted' && !localStorage.getItem('bb.pushOff');
   info.textContent = on ? 'Açık: öğlen 13:00 ve akşam 21:00 civarı dürterim.' : 'Kapalı. Günde 2 kere hatırlatayım mı?';
   btn.textContent = on ? 'Dürtme artık' : 'Dürt la';
@@ -999,6 +1041,12 @@ async function afterLogin() {
   if (afterLoginDone) return; afterLoginDone = true;
   if (!db.payDay && !localStorage.getItem('bb.payAsked')) { localStorage.setItem('bb.payAsked', '1'); await askPay(); }
   if (mode !== 'cloud' || !pushSupported()) return;
+  // Önceden "Dürt la" demiş ama sonradan telefondan kapatmış → günde en fazla bir kez hatırlat
+  if (Notification.permission === 'denied' && localStorage.getItem('bb.pushWanted') && localStorage.getItem('bb.pushNag') !== today()) {
+    localStorage.setItem('bb.pushNag', today());
+    pushGuide('denied');
+    return;
+  }
   if (Notification.permission === 'granted' && !localStorage.getItem('bb.pushOff')) {
     cloud.enablePush(user.uid, await navigator.serviceWorker.ready).catch(() => {});   // token yenilenmiş olabilir
     return;
@@ -1141,4 +1189,5 @@ if (cloud.enabled) startCloud(); else afterLogin();
 if (location.hostname === 'localhost') window.__bbTest = {
   receipt: async (data, img = 'icons/icon-192.png') => { rc = normalizeReceipt(data, img); openOv('receipt'); renderReceipt(); await runQuestions(); },
   prompt: buildPrompt,
+  pushGuide, testPush,
 };
